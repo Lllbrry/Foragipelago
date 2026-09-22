@@ -13,7 +13,9 @@
     http_get(global.URL + "Deathlink");
 
 #define get_death_response(str_json) // Show a popup when sending a death link
-    jsonErrorHandling(str_json);
+    if (!isJsonOk(str_json)){
+        return;
+    }
     
     variable_global_set("death", json_decode(str_json));
     var death = variable_global_get("death", "map");
@@ -23,7 +25,9 @@
     initApPopup("you", "death to your friends", false, c_red);
     
 #define get_deathlink(str_json) // Kill the player and show popup on receiving a death link
-    jsonErrorHandling(str_json);
+    if (!isJsonOk(str_json)){
+        return;
+    }
     
     variable_global_set("death", json_decode(str_json));
     var death = variable_global_get("death", "map");

@@ -6,7 +6,9 @@
     http_get(global.URL + "Items")
 
 #define get_items(str_json) //Grabs and updates the obtained items recieved by the server.
-    jsonErrorHandling(str_json);
+    if (!isJsonOk(str_json)){
+        return;
+    }
     
     variable_global_set("json",json_decode(str_json))
     global.json = variable_global_get("json","map")
@@ -137,14 +139,14 @@
             //Trace(url)
     }
     
-#define jsonErrorHandling(str_json)
+#define isJsonOk(str_json)
     if (is_undefined(str_json)){
         global.errorcounter = global.errorcounter + 1;
         if (global.errorcounter > 5){
             Trace("A value seems to be constantly wrong, report this to Olixx");
             global.errorcounter = 0;
         }
-        return;
+        return false;
     }
     global.errorcounter = 0;
     
@@ -152,3 +154,4 @@
         Trace("Something's off with this value, report this to Olixx");
         Trace(str_json);
     }
+    return true;
