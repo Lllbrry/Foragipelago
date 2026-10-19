@@ -5,7 +5,6 @@
     global.apPopupReceiving = receiving;
     global.apPopupColor = color;
     
-    //audio_is_playing(index)
     audio_stop_sound(sndFairyHeal);
     audio_play_sound(sndFairyHeal, 0, false);
     
@@ -45,3 +44,7 @@
     draw_text(global.apPopupX, global.apPopupY, "sent");
     draw_set_color(global.apPopupColor);
     draw_text(global.apPopupX, global.apPopupY + 20, string_lower(string_replace_all(global.apPopupItem, "\n", " ")));
+    
+    // Reset values to stop the energy bar from changing
+    draw_set_alpha(1);
+    draw_set_color(c_white);
