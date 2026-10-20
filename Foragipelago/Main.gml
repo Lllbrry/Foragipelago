@@ -7,22 +7,34 @@
     create_APItems();
     Trace("Creating Archipelago Items...")
     create_items();
-	apitem_test();
+	put_APItems_in_structures();
+	
     global.Level = 1;
     global.pendingSkillPoints = 0;
-    global.estimatedskills = 0; //Unused?
-    global.get_interval = 45; //Used to slow down when the mod send a GET request to the mod
-    global.get = 0; //The game crashes less often due to that interval.
-    global.goaled = 0
-    global.errorcounter = 0 //Undefined values for get requests
-    global.playerGear = []
-    global.gearCollected = true
-    global.goal = "level"
-    global.GoalLevel = 65
-    global.easierCraft = 0
+    global.estimatedskills = 0; // Unused?
+    global.get_interval = 45; // Used to slow down when the mod send a GET request to the mod
+    global.get = 0; // The game crashes less often due to that interval
+    global.goaled = 0;
+    global.errorcounter = 0; // Undefined values for get requests
+    global.playerGear = [];
+    global.gearCollected = true;
+    global.goal = "level";
+    global.GoalLevel = 65;
+    global.easierCraft = 0;
     for(var i = 0; i < 41; i++){
     	global.playerGear[i] = 0;
     }
+    global.previousDeathlinkTime = 0;
+    // Variables for the pop-up for getting and sending AP items
+    global.apPopupOpacity = 0;
+    global.apPopupItem = "item";
+    global.apPopupPlayer = "player";
+    global.apPopupReceiving = true;
+    global.apPopupColor = c_white;
+    global.apPopupX = 640;
+    global.apPopupY = 611;
+    global.AP_Skill_Name = ["Industry", "Carpentry", "Masonry", "Machinery", "Sewing", "Craftsmanship", "Manufacturing", "Drilling", "Textiles", "Smelting", "Railroads", "Automation", "Jewelry", "Physics", "Engineering", "Lasers", "Economy", "Storage", "Gambling", "Optics", "Trade", "Banking", "Management", "Architecture", "Bargain", "Capitalism", "Treasury", "Autorepair", "Supply", "Artistry", "Colonization", "Logistics", "Foraging", "Gathering", "Farming", "Pet", "Hunting", "Fishing", "Mining", "Geology", "Ballistics", "Cooking", "Calciverous", "Prospecting", "Looting", "Gluttony", "Prowess", "Deposit", "Magic", "Alchemy", "Inscription", "Thaumaturgy", "Combat", "Evasion", "Reagency", "Faith", "Renewal", "Spellbind", "Transmutation", "Conjuration", "Destruction", "Spirituality", "Summoning", "Astrology"];
+    
     Trace("Loaded Foragipelago!")
     Trace("Fetching Datapackage from the AP server, wait before playing.")
     http_get(global.URL + "Datapackage")
@@ -30,17 +42,23 @@
     	Trace("WARNING: Do not recompile during a save")
     	Trace("Always leave the save then join back in")
     }
-#define NoUse //Used for AP items
+    
+#define OnDrawGUI // Displays the Popup for AP items
+	apPopupDrawGUI();
+    
 
-#define apitem_test //Initialize structures with the valid tier of each craftable gear
-	//Test function that has been integrated into the main code
+#define NoUse // Does nothing. Used for AP items
 
+
+#define put_APItems_in_structures // Initialize structures with the valid tier of each craftable gear
 	global.stationItems = ds_map_create()
 	global.stations = ds_map_create()
-	ds_map_set(global.stations,"forge",Structure.Forge)
-	ds_map_set(global.stations,"sewing",Structure.SewingStation)
-	ds_map_set(global.stations,"inscription", Structure.InscriptionTable)
-	ds_map_set(global.stations,"spirit",Structure.SpiritCrystal)
+	
+	ds_map_set(global.stations, "forge", Structure.Forge)
+	ds_map_set(global.stations, "sewing", Structure.SewingStation)
+	ds_map_set(global.stations, "inscription", Structure.InscriptionTable)
+	ds_map_set(global.stations, "spirit", Structure.SpiritCrystal)
+	
 	var forgeItems = array_clone(StructureGet(Structure.Forge, StructureData.Items));
 	ds_map_set(global.stationItems, "forge", forgeItems);
 	var sewingItems = array_clone(StructureGet(Structure.SewingStation, StructureData.Items));
@@ -69,7 +87,7 @@
     	StructureEdit(station, StructureData.Items,station_items)
     }
 
-#define setCraftTier(name,tier)
+#define setCraftTier(name, tier)
 	var station = ds_map_find_value(global.AP_Gear_Station, name)
 	var station_map = ds_map_find_value(global.AP_Gear_Index, station)
 	var index = ds_map_find_value(station_map, name)
@@ -78,28 +96,8 @@
 	stationItems[index] = gear[tier]
 	ds_map_set(global.stationItems,station,stationItems)
 	StructureEdit(global.stations[? station], StructureData.Items,stationItems)
-    
-#define string_split(str, delimiter) //Because this api doesn't have access to something like that
-	//I'm not sure if it's used rn
-    ary = []
-    num = ""
-    index = 0
-    for (var i = 0; i < string_length(str); i++){
-        if string_char_at(str,i) != delimiter{
-            if string_char_at(str,i) != "[" and string_char_at(str,i) != "]" {
-                num += string_char_at(str,i)
-            }
-                
-        }else{
-            ary[index] = real(num)
-            num = ""
-            index++
-        }
-    }
-    ary[index] = real(num)
-    return ary
-    
-#define skill_test(arr) //Test function to simulate having been sent skills, fairly outdated
+
+#define skill_test(arr) // Test function to simulate having been sent skills, fairly outdated
 	var index = arr[0]
 	for(var i = 0; i < 64; i++){
 		if(i == index){
@@ -140,79 +138,105 @@
 	   	}
 	}
 
-#define OnStep //Avoid using unless necessary, could cause performance issues (called every frame)
-	if(room == rmSkillGrid) {//Skill menu
+#define OnStep // Avoid using unless necessary, could cause performance issues (called every frame)
+	if(room == rmSkillGrid) { //Skill menu
 		handleSkill()
 	}
-#define OnSystemStep //API function called periodically
-	//Anything to check constantly but not every frame should be here
-	if(instance_exists(objPlayer)){
-		objPlayer.skills += global.pendingSkillPoints; //Give the player skill points earned from skills items, to buy them
-		global.pendingSkillPoints = 0;
-		if(objPlayer.level > global.Level){ //The player leveled up in some way.
-			global.Level++
-			var id = 300 + global.Level
-			objPlayer.skills = objPlayer.skills - 1
-			if(global.Level < global.GoalLevel || global.GoalLevel == -1){
-				send_check(id); //Missed check if client is disconnected
-			}
-		}
-		global.estimatedskills = objPlayer.skills
-		if(objPlayer.level >= global.GoalLevel && global.GoalLevel != -1 && global.goaled == 0){
-			//Level goal achieved, only if it's the correct goal
-			send_goal();
-			global.goaled = 1;
-		}
-		
-		handleSkill()
-	    //Handle gear
-	    //TODO : There's a function in Items that was supposed to do that, do that over there.
-	    for(var i = 0; i < array_length(global.AP_Gear_Name);i++){
-	    	var name = global.AP_Gear_Name[i]
-	    	if(is_undefined(global.playerGearMap) || is_undefined(name)){
-	    		Trace("Something is wrong : gearMap")
-	    		return
-	    	}
-	    	if(ds_map_exists(global.playerGearMap,name)){
-	    		var tier = ds_map_find_value(global.f_Gear,name)
-	    		var index = global.Toolbar_IDs[i]
-	    		var current_tier = global.playerGear[index];
-	    		var items = ds_map_find_value(global.playerGearMap, name)
-	    		tier = min(tier,array_length(items)-1)
-	    		var item = items[min(current_tier+1,array_length(items)-1)]
-	    		if(!is_undefined(item)){
-	    			if(i > array_length(global.playerGear)){
-	    				Trace("Something is wrong : playerGear")
-	    			}
-	    			if(tier > current_tier && global.gearCollected){
-	    				//The goal is to drop them one at a time, to avoid bugs.
-	    				DropItem(objPlayer.x,objPlayer.y,item,1)
-	    				global.gearCollected = false
-	    			}
-	    		}
-	    	}
-	    	//Handle Unlocked bools of AP Gear, continuously match them with vanilla gear
-	    	var apGears = global.AP_Items[? name]
-	    	var fGears = global.playerGearMap[? name]
-	    	for(var k = 0; k < array_length(apGears);k++){
-	    		var unlock = ItemGet(fGears[k+1],ItemData.Unlocked)
-	    		ItemEdit(apGears[k],ItemData.Unlocked,unlock)
-	    	}
-	    }
-	    ToolbarRefresh(true)
-	    
-	    if(global.get >= global.get_interval){
-	    	send_get_items(); //GET request for any items
-	    	global.get = 0;
-	    }
-	    global.get++;
+
+#define OnSystemStep // API function called periodically.  Anything to check constantly but not every frame should be here
+	if (!instance_exists(objPlayer) || instance_exists(objPlayerMenu) || objPlayer.hp == 0){
+		exit;
 	}
 	
-#define OnLoad() //When a save file is loaded
+	// Reached goal lvl?
+	if (objPlayer.level >= global.GoalLevel && global.GoalLevel != -1 && global.goaled == 0){
+		// Level goal achieved, only if it's the correct goal
+		send_goal();
+		global.goaled = 1;
+	}
+    
+    // Handle Death Link every 10th step
+    if (global.get % 10 == 0){
+		send_get_deathlink(); // GET death links
+    }
+	
+	if (!instance_exists(objPlayer) || instance_exists(objPlayerMenu) || objPlayer.hp == 0){
+		exit;
+	}
+	
+	// Handle skills
+	objPlayer.skills += global.pendingSkillPoints; // Give the player skill points earned from skills items, to buy them
+	global.pendingSkillPoints = 0;
+	if (objPlayer.level > global.Level){ // The player leveled up in some way
+		global.Level++;
+		var id = 300 + global.Level;
+		objPlayer.skills = objPlayer.skills - 1;
+		if (global.Level < global.GoalLevel || global.GoalLevel == -1){
+			send_check(id); // Missed check if client is disconnected
+		}
+	}
+	global.estimatedskills = objPlayer.skills;
+	handleSkill();
+	
+	if (!instance_exists(objPlayer) || instance_exists(objPlayerMenu) || objPlayer.hp == 0){
+		exit;
+	}
+	
+    // Handle gear
+    //TODO : There's a function in Items that was supposed to do that, do that over there.
+    for (var i = 0; i < array_length(global.AP_Gear_Name); i++){
+    	var name = global.AP_Gear_Name[i]
+    	if (is_undefined(global.playerGearMap) || is_undefined(name)){
+    		Trace("Something is wrong : gearMap")
+    		return
+    	}
+    	
+    	if (ds_map_exists(global.playerGearMap, name)){
+    		var tier = ds_map_find_value(global.f_Gear, name);
+    		var index = global.Toolbar_IDs[i]
+    		var current_tier = global.playerGear[index];
+    		var items = ds_map_find_value(global.playerGearMap, name)
+    		tier = min(tier, array_length(items)-1)
+    		var item = items[min(current_tier+1, array_length(items)-1)]
+    		if (!is_undefined(item)){
+    			if (i > array_length(global.playerGear)){
+    				Trace("Something is wrong : playerGear");
+    			}
+    			if (tier > current_tier && global.gearCollected){
+    				// The goal is to drop them one at a time, to avoid bugs
+    				DropItem(objPlayer.x, objPlayer.y, item, 1);
+    				global.gearCollected = false;
+					initApPopup("a player", ItemGet(item, ItemData.Name), true, c_yellow);
+    			}
+    		}
+    	}
+    	
+    	// Handle Unlocked bools of AP Gear, continuously match them with vanilla gear
+    	var apGears = global.AP_Items[? name];
+    	var fGears = global.playerGearMap[? name];
+    	for (var k = 0; k < array_length(apGears); k++){
+    		var unlock = ItemGet(fGears[k+1], ItemData.Unlocked);
+    		ItemEdit(apGears[k], ItemData.Unlocked, unlock);
+    	}
+    }
+    ToolbarRefresh(true);
+    
+    if (!instance_exists(objPlayer) || instance_exists(objPlayerMenu) || objPlayer.hp == 0){
+		exit;
+	}
+    
+    // Handle AP items
+    if (global.get >= global.get_interval){
+    	send_get_items(); // GET request for any items
+    	global.get = 0;
+    }
+    global.get++;
+	
+#define OnLoad() // When a save file is loaded
 	global.Level = objPlayer.level
 	var _map = ModSaveDataFetch()
-	//Loading gear
-	for(var i = 0; i < array_length(global.AP_Gear_Name);i++){
+	// Loading gear
+	for(var i = 0; i < array_length(global.AP_Gear_Name); i++){
 	    var name = global.AP_Gear_Name[i]
 	    if(is_undefined(name)){
 	    	Trace("Something is wrong : loading")
@@ -224,7 +248,7 @@
 	    	global.playerGear[index] = tier
 	    }
 	}
-	//Loading skills
+	// Loading skills
 	for(var i = 0; i < 64; i++){
 		var name = "skill" + string(i)
 		var skill = _map[? name]
@@ -238,9 +262,9 @@
 		global.gearCollected = collected
 	}
 	
-#define OnSave() //When a file is being saved, before mod chunks are saved.
+#define OnSave() // When a file is being saved, before mod chunks are saved
 	var _map = ds_map_create()
-	for(var i = 0; i < array_length(global.AP_Gear_Name);i++){
+	for(var i = 0; i < array_length(global.AP_Gear_Name); i++){
 	    var name = global.AP_Gear_Name[i]
 	    if(is_undefined(name)){
 	    	Trace("Something is wrong : save")
@@ -259,15 +283,16 @@
 	_map[? "gearCollected"] = global.gearCollected
 	
 	ModSaveDataSubmit(_map)
+
 #define handleSkill()
 	global.skills = variable_global_get("skillUnlocked")
     if (global.estimatedskills == 0){ //No Skill Points, show everything
 		for (var i = 0; i < 64; i++){
-		    if(global.skills[i] != 2){ //Don't change bought skills status
+		    if(global.skills[i] != 2){ // Don't change bought skills status
 		        global.skills[i] = 1
 		    }
-	    }
-	}
+        }
+    }
 	else{ //Skill points, only show skills that are meant to be bought
 		for (var i = 0; i < 64; i++){
 	    	if(global.skills[i] != 2){ //And don't hide already bought skills obviously
@@ -281,4 +306,3 @@
 		}
 	}
 	variable_global_set("skillUnlocked", global.skills)
-	
