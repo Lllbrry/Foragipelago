@@ -93,6 +93,7 @@
         ItemEdit(Item.IronIngot, ItemData.Blueprint, [Item.IronOre,1,Item.Coal,1])
         ItemEdit(Item.GoldIngot, ItemData.Blueprint, [Item.GoldOre,1,Item.Coal,1])
         ItemEdit(Item.Glass, ItemData.Blueprint, [Item.Sand,1,Item.Coal,1])
+        ItemEdit(Item.Thread, ItemData.Blueprint, [Item.Fiber,1])
     }
     
 #define send_goal()
